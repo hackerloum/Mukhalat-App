@@ -1,6 +1,10 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  command = "npm ci && npm run build"
+
+[build.environment]
+  NPM_CONFIG_CACHE = "/opt/buildhome/.npm"
+  NODE_VERSION = "20"
 
 [[redirects]]
   from = "/*"
