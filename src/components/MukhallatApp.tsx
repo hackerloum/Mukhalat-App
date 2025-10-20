@@ -556,26 +556,26 @@ function Dashboard({ user, appUser, onSignOut }: {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <ShoppingBag className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-              <h1 className="ml-2 text-lg sm:text-xl font-semibold text-gray-900">Mukhallat App</h1>
+          <div className="flex justify-between items-center h-16 min-w-0">
+            <div className="flex items-center min-w-0 flex-1">
+              <ShoppingBag className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+              <h1 className="ml-2 text-sm sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">Mukhallat App</h1>
             </div>
             
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="hidden sm:block text-sm text-gray-600">
-                Welcome, {appUser?.full_name || appUser?.email}
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
+              <div className="hidden lg:block text-sm text-gray-600 truncate max-w-32">
+                Welcome, {(appUser?.full_name || appUser?.email)?.slice(0, 20)}
               </div>
               <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                 {appUser?.role}
               </div>
               <button
                 onClick={onSignOut}
-                className="flex items-center text-gray-600 hover:text-gray-900 p-1 sm:p-0"
+                className="flex items-center text-gray-600 hover:text-gray-900 p-1 sm:p-2"
                 title="Sign Out"
               >
                 <LogOut className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <span className="hidden sm:inline text-sm">Sign Out</span>
               </button>
             </div>
           </div>
@@ -585,7 +585,7 @@ function Dashboard({ user, appUser, onSignOut }: {
       {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto scrollbar-hide">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: Package },
               { id: 'inventory', label: 'Inventory', icon: Package },
@@ -599,14 +599,15 @@ function Dashboard({ user, appUser, onSignOut }: {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center px-2 sm:px-3 py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <tab.icon className="h-4 w-4 mr-2" />
-                {tab.label}
+                <tab.icon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">{tab.label}</span>
+                <span className="xs:hidden">{tab.label.split(' ')[0]}</span>
               </button>
             ))}
           </nav>
@@ -614,8 +615,10 @@ function Dashboard({ user, appUser, onSignOut }: {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {renderContent()}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="overflow-x-hidden">
+          {renderContent()}
+        </div>
       </div>
     </div>
   )
@@ -650,55 +653,55 @@ function DashboardContent({ perfumes, loading, showAddModal, setShowAddModal, ha
   return (
     <>
       {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-sm border border-blue-200 p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-sm border border-blue-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600 mb-1">Total Products</p>
-              <p className="text-2xl font-bold text-blue-900">{perfumes.length.toLocaleString()}</p>
-              <p className="text-xs text-blue-500 mt-1">Unique items</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1 truncate">Total Products</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-900">{perfumes.length.toLocaleString()}</p>
+              <p className="text-xs text-blue-500 mt-1 hidden sm:block">Unique items</p>
             </div>
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <Package className="h-6 w-6 text-white" />
+            <div className="bg-blue-500 p-2 sm:p-3 rounded-lg flex-shrink-0 ml-2">
+              <Package className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600 mb-1">Total Value</p>
-              <p className="text-2xl font-bold text-green-900">${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-xs text-green-500 mt-1">At sell price</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-green-600 mb-1 truncate">Total Value</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-900">${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-xs text-green-500 mt-1 hidden sm:block">At sell price</p>
             </div>
-            <div className="bg-green-500 p-3 rounded-lg">
-              <DollarSign className="h-6 w-6 text-white" />
+            <div className="bg-green-500 p-2 sm:p-3 rounded-lg flex-shrink-0 ml-2">
+              <DollarSign className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-sm border border-purple-200 p-6">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-sm border border-purple-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-600 mb-1">Profit Margin</p>
-              <p className="text-2xl font-bold text-purple-900">${stats.profitMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-xs text-purple-500 mt-1">Potential profit</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-purple-600 mb-1 truncate">Profit Margin</p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-900">${stats.profitMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-xs text-purple-500 mt-1 hidden sm:block">Potential profit</p>
             </div>
-            <div className="bg-purple-500 p-3 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-white" />
+            <div className="bg-purple-500 p-2 sm:p-3 rounded-lg flex-shrink-0 ml-2">
+              <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-sm border border-orange-200 p-6">
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-sm border border-orange-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-orange-600 mb-1">Total Items</p>
-              <p className="text-2xl font-bold text-orange-900">{stats.totalItems.toLocaleString()}</p>
-              <p className="text-xs text-orange-500 mt-1">In inventory</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-orange-600 mb-1 truncate">Total Items</p>
+              <p className="text-lg sm:text-2xl font-bold text-orange-900">{stats.totalItems.toLocaleString()}</p>
+              <p className="text-xs text-orange-500 mt-1 hidden sm:block">In inventory</p>
             </div>
-            <div className="bg-orange-500 p-3 rounded-lg">
-              <Package className="h-6 w-6 text-white" />
+            <div className="bg-orange-500 p-2 sm:p-3 rounded-lg flex-shrink-0 ml-2">
+              <Package className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </div>
