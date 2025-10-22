@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
@@ -379,7 +379,7 @@ export function StatisticsSection({ user, appUser }: StatisticsSectionProps) {
         ['Total Outstanding', `$${statistics.totalOutstanding.toFixed(2)}`]
       ]
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: 60,
         head: [['Metric', 'Value']],
         body: metrics,
@@ -388,7 +388,7 @@ export function StatisticsSection({ user, appUser }: StatisticsSectionProps) {
       
       // Top customers
       doc.setFontSize(16)
-      doc.text('Top Customers', 20, doc.lastAutoTable.finalY + 20)
+      doc.text('Top Customers', 20, (doc as any).lastAutoTable.finalY + 20)
       
       const customerData = statistics.topCustomers.map(customer => [
         customer.name,
@@ -396,8 +396,8 @@ export function StatisticsSection({ user, appUser }: StatisticsSectionProps) {
         `$${customer.total_spent.toFixed(2)}`
       ])
       
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 30,
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 30,
         head: [['Customer', 'Orders', 'Total Spent']],
         body: customerData,
         theme: 'grid'
@@ -405,7 +405,7 @@ export function StatisticsSection({ user, appUser }: StatisticsSectionProps) {
       
       // Top products
       doc.setFontSize(16)
-      doc.text('Top Products', 20, doc.lastAutoTable.finalY + 20)
+      doc.text('Top Products', 20, (doc as any).lastAutoTable.finalY + 20)
       
       const productData = statistics.topProducts.map(product => [
         product.name,
@@ -414,8 +414,8 @@ export function StatisticsSection({ user, appUser }: StatisticsSectionProps) {
         `$${product.revenue.toFixed(2)}`
       ])
       
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 30,
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 30,
         head: [['Product', 'Brand', 'Quantity', 'Revenue']],
         body: productData,
         theme: 'grid'
