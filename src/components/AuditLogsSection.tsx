@@ -55,51 +55,89 @@ export function AuditLogsSection() {
 
   const loadAuditLogsDirect = async (): Promise<CombinedAuditLog[]> => {
     try {
-      // Load system audit logs (simplified query)
-      const { data: systemLogs, error: systemError } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(100)
+      // Load both types of audit logs
+      const [systemLogsResult, customerDebitLogsResult] = await Promise.all([
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(100),
+        supabase
+          .from('customer_debit_audit_logs')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(100)
+      ])
 
-      if (systemError) {
-        console.error('Error loading system audit logs:', systemError)
+      if (systemLogsResult.error) {
+        console.error('Error loading system audit logs:', systemLogsResult.error)
+      }
+      if (customerDebitLogsResult.error) {
+        console.error('Error loading customer debit audit logs:', customerDebitLogsResult.error)
       }
 
-      // Load customer debit audit logs (simplified query)
-      const { data: customerDebitLogs, error: customerDebitError } = await supabase
-        .from('customer_debit_audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(100)
+      const systemLogs = systemLogsResult.data || []
+      const customerDebitLogs = customerDebitLogsResult.data || []
+      
+      // Get all unique user IDs from both log types
+      const allUserIds = [...new Set([
+        ...systemLogs.map(log => log.user_id),
+        ...customerDebitLogs.map(log => log.user_id)
+      ])]
+      
+      // Get all unique customer IDs from customer debit logs
+      const customerIds = [...new Set(customerDebitLogs.map(log => log.customer_id).filter(Boolean))]
+      
+      // Fetch users and customers
+      const [usersResult, customersResult] = await Promise.all([
+        supabase
+          .from('app_users')
+          .select('id, full_name, email, role')
+          .in('id', allUserIds),
+        supabase
+          .from('customers')
+          .select('id, name')
+          .in('id', customerIds)
+      ])
 
-      if (customerDebitError) {
-        console.error('Error loading customer debit audit logs:', customerDebitError)
-      }
+      // Create lookup maps
+      const userMap = new Map(usersResult.data?.map(user => [user.id, user]) || [])
+      const customerMap = new Map(customersResult.data?.map(customer => [customer.id, customer]) || [])
+      
+      // Transform system logs
+      const transformedSystemLogs: CombinedAuditLog[] = systemLogs.map(log => {
+        const user = userMap.get(log.user_id)
+        return {
+          ...log,
+          log_type: 'system' as const,
+          transaction_id: undefined,
+          customer_id: undefined,
+          customer_name: null,
+          user_name: user?.full_name || 'Unknown User',
+          user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
+          old_values: undefined,
+          new_values: undefined,
+          target_id: log.target_id,
+          target_type: log.target_type
+        }
+      })
 
-      // Transform system logs (simplified)
-      const transformedSystemLogs: CombinedAuditLog[] = (systemLogs || []).map(log => ({
-        ...log,
-        log_type: 'system' as const,
-        transaction_id: undefined,
-        customer_id: undefined,
-        customer_name: undefined,
-        user_name: 'Unknown User', // Will be filled later if needed
-        user_email: 'Unknown',
-        user_role: 'Unknown',
-        old_values: undefined,
-        new_values: undefined
-      }))
-
-      // Transform customer debit logs (simplified)
-      const transformedCustomerDebitLogs: CombinedAuditLog[] = (customerDebitLogs || []).map(log => ({
-        ...log,
-        log_type: 'customer_debit' as const,
-        user_name: 'Unknown User', // Will be filled later if needed
-        user_email: 'Unknown',
-        user_role: 'Unknown',
-        customer_name: 'Unknown Customer' // Will be filled later if needed
-      }))
+      // Transform customer debit logs
+      const transformedCustomerDebitLogs: CombinedAuditLog[] = customerDebitLogs.map(log => {
+        const user = userMap.get(log.user_id)
+        const customer = customerMap.get(log.customer_id)
+        return {
+          ...log,
+          log_type: 'customer_debit' as const,
+          user_name: user?.full_name || 'Unknown User',
+          user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
+          customer_name: customer?.name || null,
+          target_id: log.transaction_id,
+          target_type: 'customer_debit'
+        }
+      })
 
       // Combine and sort by timestamp
       const allLogs = [...transformedSystemLogs, ...transformedCustomerDebitLogs]
@@ -334,6 +372,9 @@ export function AuditLogsSection() {
                   Timestamp
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Log Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -341,6 +382,9 @@ export function AuditLogsSection() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Target
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
@@ -374,6 +418,11 @@ export function AuditLogsSection() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLogTypeColor(log.log_type)}`}>
+                        {log.log_type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <User className="h-4 w-4 text-gray-400 mr-2" />
                         <div>
@@ -395,10 +444,19 @@ export function AuditLogsSection() {
                       <div className="max-w-xs truncate">
                         {log.description}
                       </div>
-                      {log.transaction_id && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Transaction: {log.transaction_id.substring(0, 8)}...
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {log.target_id ? (
+                        <div>
+                          <div className="text-sm font-medium">
+                            {log.target_type}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ID: {log.target_id.substring(0, 8)}...
+                          </div>
                         </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

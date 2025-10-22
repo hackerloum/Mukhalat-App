@@ -251,52 +251,90 @@ export class AuditLogService {
   // Get combined audit logs (system + customer debit)
   static async getCombinedAuditLogs(limit: number = 100): Promise<CombinedAuditLog[]> {
     try {
-      // Simple query without foreign key joins to avoid relationship errors
-      const { data, error } = await supabase
-        .from('customer_debit_audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(limit)
+      // Load both types of audit logs
+      const [systemLogsResult, customerDebitLogsResult] = await Promise.all([
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(limit),
+        supabase
+          .from('customer_debit_audit_logs')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(limit)
+      ])
 
-      if (error) throw error
-      
-      // Get user and customer data separately
-      const userIds = [...new Set(data?.map(log => log.user_id) || [])]
-      const customerIds = [...new Set(data?.map(log => log.customer_id).filter(Boolean) || [])]
-      
-      // Fetch users
-      const { data: users } = await supabase
-        .from('app_users')
-        .select('id, full_name, email')
-        .in('id', userIds)
+      if (systemLogsResult.error) console.error('Error loading system logs:', systemLogsResult.error)
+      if (customerDebitLogsResult.error) console.error('Error loading customer debit logs:', customerDebitLogsResult.error)
 
-      // Fetch customers
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id, name')
-        .in('id', customerIds)
+      const systemLogs = systemLogsResult.data || []
+      const customerDebitLogs = customerDebitLogsResult.data || []
+      
+      // Get all unique user IDs from both log types
+      const allUserIds = [...new Set([
+        ...systemLogs.map(log => log.user_id),
+        ...customerDebitLogs.map(log => log.user_id)
+      ])]
+      
+      // Get all unique customer IDs from customer debit logs
+      const customerIds = [...new Set(customerDebitLogs.map(log => log.customer_id).filter(Boolean))]
+      
+      // Fetch users and customers
+      const [usersResult, customersResult] = await Promise.all([
+        supabase
+          .from('app_users')
+          .select('id, full_name, email, role')
+          .in('id', allUserIds),
+        supabase
+          .from('customers')
+          .select('id, name')
+          .in('id', customerIds)
+      ])
 
       // Create lookup maps
-      const userMap = new Map(users?.map(user => [user.id, user]) || [])
-      const customerMap = new Map(customers?.map(customer => [customer.id, customer]) || [])
+      const userMap = new Map(usersResult.data?.map(user => [user.id, user]) || [])
+      const customerMap = new Map(customersResult.data?.map(customer => [customer.id, customer]) || [])
       
-      // Transform the data to match our interface
-      const transformedLogs = data?.map(log => {
+      // Transform system logs
+      const transformedSystemLogs = systemLogs.map(log => {
+        const user = userMap.get(log.user_id)
+        return {
+          ...log,
+          log_type: 'system' as const,
+          user_name: user?.full_name || 'Unknown User',
+          user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
+          customer_name: null,
+          transaction_id: undefined,
+          customer_id: undefined,
+          target_id: log.target_id,
+          target_type: log.target_type
+        }
+      })
+      
+      // Transform customer debit logs
+      const transformedCustomerDebitLogs = customerDebitLogs.map(log => {
         const user = userMap.get(log.user_id)
         const customer = customerMap.get(log.customer_id)
-        
         return {
           ...log,
           log_type: 'customer_debit' as const,
           user_name: user?.full_name || 'Unknown User',
           user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
           customer_name: customer?.name || null,
           target_id: log.transaction_id,
           target_type: 'customer_debit'
         }
-      }) || []
+      })
 
-      return transformedLogs
+      // Combine and sort by timestamp
+      const allLogs = [...transformedSystemLogs, ...transformedCustomerDebitLogs]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, limit)
+
+      return allLogs
     } catch (error) {
       console.error('Error fetching combined audit logs:', error)
       return []
@@ -310,52 +348,94 @@ export class AuditLogService {
     limit: number = 100
   ): Promise<CombinedAuditLog[]> {
     try {
-      const { data, error } = await supabase
-        .from('customer_debit_audit_logs')
-        .select('*')
-        .gte('timestamp', startDate)
-        .lte('timestamp', endDate)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
+      // Load both types of audit logs within date range
+      const [systemLogsResult, customerDebitLogsResult] = await Promise.all([
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .gte('timestamp', startDate)
+          .lte('timestamp', endDate)
+          .order('timestamp', { ascending: false })
+          .limit(limit),
+        supabase
+          .from('customer_debit_audit_logs')
+          .select('*')
+          .gte('timestamp', startDate)
+          .lte('timestamp', endDate)
+          .order('timestamp', { ascending: false })
+          .limit(limit)
+      ])
 
-      if (error) throw error
-      
-      // Get user and customer data separately
-      const userIds = [...new Set(data?.map(log => log.user_id) || [])]
-      const customerIds = [...new Set(data?.map(log => log.customer_id).filter(Boolean) || [])]
-      
-      // Fetch users
-      const { data: users } = await supabase
-        .from('app_users')
-        .select('id, full_name, email')
-        .in('id', userIds)
+      if (systemLogsResult.error) console.error('Error loading system logs:', systemLogsResult.error)
+      if (customerDebitLogsResult.error) console.error('Error loading customer debit logs:', customerDebitLogsResult.error)
 
-      // Fetch customers
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id, name')
-        .in('id', customerIds)
+      const systemLogs = systemLogsResult.data || []
+      const customerDebitLogs = customerDebitLogsResult.data || []
+      
+      // Get all unique user IDs from both log types
+      const allUserIds = [...new Set([
+        ...systemLogs.map(log => log.user_id),
+        ...customerDebitLogs.map(log => log.user_id)
+      ])]
+      
+      // Get all unique customer IDs from customer debit logs
+      const customerIds = [...new Set(customerDebitLogs.map(log => log.customer_id).filter(Boolean))]
+      
+      // Fetch users and customers
+      const [usersResult, customersResult] = await Promise.all([
+        supabase
+          .from('app_users')
+          .select('id, full_name, email, role')
+          .in('id', allUserIds),
+        supabase
+          .from('customers')
+          .select('id, name')
+          .in('id', customerIds)
+      ])
 
       // Create lookup maps
-      const userMap = new Map(users?.map(user => [user.id, user]) || [])
-      const customerMap = new Map(customers?.map(customer => [customer.id, customer]) || [])
+      const userMap = new Map(usersResult.data?.map(user => [user.id, user]) || [])
+      const customerMap = new Map(customersResult.data?.map(customer => [customer.id, customer]) || [])
       
-      const transformedLogs = data?.map(log => {
+      // Transform system logs
+      const transformedSystemLogs = systemLogs.map(log => {
+        const user = userMap.get(log.user_id)
+        return {
+          ...log,
+          log_type: 'system' as const,
+          user_name: user?.full_name || 'Unknown User',
+          user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
+          customer_name: null,
+          transaction_id: undefined,
+          customer_id: undefined,
+          target_id: log.target_id,
+          target_type: log.target_type
+        }
+      })
+      
+      // Transform customer debit logs
+      const transformedCustomerDebitLogs = customerDebitLogs.map(log => {
         const user = userMap.get(log.user_id)
         const customer = customerMap.get(log.customer_id)
-        
         return {
           ...log,
           log_type: 'customer_debit' as const,
           user_name: user?.full_name || 'Unknown User',
           user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
           customer_name: customer?.name || null,
           target_id: log.transaction_id,
           target_type: 'customer_debit'
         }
-      }) || []
+      })
 
-      return transformedLogs
+      // Combine and sort by timestamp
+      const allLogs = [...transformedSystemLogs, ...transformedCustomerDebitLogs]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, limit)
+
+      return allLogs
     } catch (error) {
       console.error('Error fetching audit logs by date range:', error)
       return []
@@ -368,51 +448,92 @@ export class AuditLogService {
     limit: number = 100
   ): Promise<CombinedAuditLog[]> {
     try {
-      const { data, error } = await supabase
-        .from('customer_debit_audit_logs')
-        .select('*')
-        .or(`description.ilike.%${searchTerm}%,action.ilike.%${searchTerm}%`)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
+      // Search both types of audit logs
+      const [systemLogsResult, customerDebitLogsResult] = await Promise.all([
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .or(`description.ilike.%${searchTerm}%,action.ilike.%${searchTerm}%`)
+          .order('timestamp', { ascending: false })
+          .limit(limit),
+        supabase
+          .from('customer_debit_audit_logs')
+          .select('*')
+          .or(`description.ilike.%${searchTerm}%,action.ilike.%${searchTerm}%`)
+          .order('timestamp', { ascending: false })
+          .limit(limit)
+      ])
 
-      if (error) throw error
-      
-      // Get user and customer data separately
-      const userIds = [...new Set(data?.map(log => log.user_id) || [])]
-      const customerIds = [...new Set(data?.map(log => log.customer_id).filter(Boolean) || [])]
-      
-      // Fetch users
-      const { data: users } = await supabase
-        .from('app_users')
-        .select('id, full_name, email')
-        .in('id', userIds)
+      if (systemLogsResult.error) console.error('Error searching system logs:', systemLogsResult.error)
+      if (customerDebitLogsResult.error) console.error('Error searching customer debit logs:', customerDebitLogsResult.error)
 
-      // Fetch customers
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id, name')
-        .in('id', customerIds)
+      const systemLogs = systemLogsResult.data || []
+      const customerDebitLogs = customerDebitLogsResult.data || []
+      
+      // Get all unique user IDs from both log types
+      const allUserIds = [...new Set([
+        ...systemLogs.map(log => log.user_id),
+        ...customerDebitLogs.map(log => log.user_id)
+      ])]
+      
+      // Get all unique customer IDs from customer debit logs
+      const customerIds = [...new Set(customerDebitLogs.map(log => log.customer_id).filter(Boolean))]
+      
+      // Fetch users and customers
+      const [usersResult, customersResult] = await Promise.all([
+        supabase
+          .from('app_users')
+          .select('id, full_name, email, role')
+          .in('id', allUserIds),
+        supabase
+          .from('customers')
+          .select('id, name')
+          .in('id', customerIds)
+      ])
 
       // Create lookup maps
-      const userMap = new Map(users?.map(user => [user.id, user]) || [])
-      const customerMap = new Map(customers?.map(customer => [customer.id, customer]) || [])
+      const userMap = new Map(usersResult.data?.map(user => [user.id, user]) || [])
+      const customerMap = new Map(customersResult.data?.map(customer => [customer.id, customer]) || [])
       
-      const transformedLogs = data?.map(log => {
+      // Transform system logs
+      const transformedSystemLogs = systemLogs.map(log => {
+        const user = userMap.get(log.user_id)
+        return {
+          ...log,
+          log_type: 'system' as const,
+          user_name: user?.full_name || 'Unknown User',
+          user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
+          customer_name: null,
+          transaction_id: undefined,
+          customer_id: undefined,
+          target_id: log.target_id,
+          target_type: log.target_type
+        }
+      })
+      
+      // Transform customer debit logs
+      const transformedCustomerDebitLogs = customerDebitLogs.map(log => {
         const user = userMap.get(log.user_id)
         const customer = customerMap.get(log.customer_id)
-        
         return {
           ...log,
           log_type: 'customer_debit' as const,
           user_name: user?.full_name || 'Unknown User',
           user_email: user?.email || 'Unknown',
+          user_role: user?.role || 'Unknown',
           customer_name: customer?.name || null,
           target_id: log.transaction_id,
           target_type: 'customer_debit'
         }
-      }) || []
+      })
 
-      return transformedLogs
+      // Combine and sort by timestamp
+      const allLogs = [...transformedSystemLogs, ...transformedCustomerDebitLogs]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, limit)
+
+      return allLogs
     } catch (error) {
       console.error('Error searching audit logs:', error)
       return []
