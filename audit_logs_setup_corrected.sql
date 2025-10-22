@@ -1,4 +1,4 @@
--- Audit Logs Database Views Setup
+-- Audit Logs Database Views Setup - CORRECTED VERSION
 -- Copy and paste this entire script into your Supabase SQL Editor
 
 -- 1. Create combined_audit_logs view (corrected for actual table structure)

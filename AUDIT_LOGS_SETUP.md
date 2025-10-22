@@ -13,15 +13,15 @@ This document provides instructions for setting up the database views and functi
 Run the following SQL commands in your Supabase SQL editor:
 
 ```sql
--- 1. Create combined_audit_logs view
+-- 1. Create combined_audit_logs view (corrected for actual table structure)
 CREATE OR REPLACE VIEW combined_audit_logs AS
 SELECT 
     id,
     action,
     description,
     user_id,
-    target_id,
-    target_type,
+    NULL as target_id,  -- audit_logs table doesn't have target_id
+    NULL as target_type,  -- audit_logs table doesn't have target_type
     metadata,
     timestamp,
     ip_address,
@@ -75,7 +75,6 @@ GRANT SELECT ON audit_logs_with_users TO authenticated;
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_target_type ON audit_logs(target_type);
 
 CREATE INDEX IF NOT EXISTS idx_customer_debit_audit_logs_user_id ON customer_debit_audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_customer_debit_audit_logs_action ON customer_debit_audit_logs(action);
