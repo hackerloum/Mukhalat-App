@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { 
   ShoppingBag, 
   Package, 
@@ -23,12 +22,7 @@ import { EditProductModal } from './EditProductModal'
 import { CustomerDebitsSection } from './CustomerDebitsSection'
 import { StatisticsSection } from './StatisticsSection'
 import { AuditLogService, AuditAction } from '../services/auditLogService'
-
-// Supabase client
-const supabaseUrl = 'https://prsxpmhfbdhekrkjiuti.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc3hwbWhmYmRoZWtya2ppdXRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MTMwNDYsImV4cCI6MjA3NDI4OTA0Nn0.HiPS3ibFT3Zv2SBTVduWngl0Y4rbSyw91XW8cQL3N6w'
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { supabase } from '../lib/supabase'
 
 // Types
 interface Perfume {
