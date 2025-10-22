@@ -21,6 +21,7 @@ import { OrdersSection } from './OrdersSection'
 import { AuditLogsSection } from './AuditLogsSection'
 import { EditProductModal } from './EditProductModal'
 import { CustomerDebitsSection } from './CustomerDebitsSection'
+import { StatisticsSection } from './StatisticsSection'
 import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 // Supabase client
@@ -537,7 +538,7 @@ function Dashboard({ user, appUser, onSignOut }: {
       case 'customer-debits':
         return <CustomerDebitsSection user={user} appUser={appUser} />
       case 'stats':
-        return <StatsContent perfumes={perfumes} stats={stats} />
+        return <StatisticsSection user={user} appUser={appUser} />
       case 'orders':
         return <OrdersContent user={user} appUser={appUser} />
       case 'users':
@@ -1128,53 +1129,6 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
         product={editingProduct}
       />
     </>
-  )
-}
-
-// Stats Content Component
-function StatsContent({ perfumes, stats }: { perfumes: Perfume[], stats: any }) {
-  return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Inventory Statistics</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{perfumes.length.toLocaleString()}</div>
-            <div className="text-sm text-gray-500">Total Products</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{stats.totalItems.toLocaleString()}</div>
-            <div className="text-sm text-gray-500">Total Items</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="text-sm text-gray-500">Total Value</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">${stats.profitMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="text-sm text-gray-500">Profit Margin</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Category Breakdown</h3>
-        <div className="space-y-4">
-          {Object.entries(
-            perfumes.reduce((acc, perfume) => {
-              acc[perfume.category] = (acc[perfume.category] || 0) + 1
-              return acc
-            }, {} as Record<string, number>)
-          ).map(([category, count]) => (
-            <div key={category} className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">{category}</span>
-              <span className="text-sm text-gray-500">{count} products</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
 
