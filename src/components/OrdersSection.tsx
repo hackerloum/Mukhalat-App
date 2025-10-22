@@ -142,9 +142,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
       const { error: updateError } = await supabase
         .from('orders')
         .update({ 
-          status: newStatus,
-          closed_by: user.id,
-          updated_at: new Date().toISOString()
+          status: newStatus
         })
         .eq('id', orderId)
 
@@ -165,7 +163,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
           total_amount: currentOrder?.total_amount,
           previous_status: currentOrder?.status,
           new_status: newStatus,
-          closed_by: user.full_name || user.email
+          updated_by: user.full_name || user.email
         }
       })
 
