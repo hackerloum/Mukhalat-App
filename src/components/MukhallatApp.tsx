@@ -20,6 +20,7 @@ import {
 import { OrdersSection } from './OrdersSection'
 import { AuditLogsSection } from './AuditLogsSection'
 import { EditProductModal } from './EditProductModal'
+import { CustomerDebitsSection } from './CustomerDebitsSection'
 import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 // Supabase client
@@ -533,6 +534,8 @@ function Dashboard({ user, appUser, onSignOut }: {
           appUser={appUser}
           user={user}
         />
+      case 'customer-debits':
+        return <CustomerDebitsSection user={user} appUser={appUser} />
       case 'stats':
         return <StatsContent perfumes={perfumes} stats={stats} />
       case 'orders':
@@ -592,6 +595,7 @@ function Dashboard({ user, appUser, onSignOut }: {
             {[
               { id: 'dashboard', label: 'Dashboard', icon: Package },
               { id: 'inventory', label: 'Inventory', icon: Package },
+              { id: 'customer-debits', label: 'Customer Debits', icon: DollarSign },
               { id: 'stats', label: 'Statistics', icon: TrendingUp },
               { id: 'orders', label: 'Orders', icon: ShoppingBag },
               ...(appUser?.role === 'admin' ? [

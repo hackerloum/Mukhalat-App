@@ -756,7 +756,7 @@ function InventorySection({ appUser }: { appUser: AppUser | null }) {
   )
 
   if (loading) {
-    return (
+  return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
@@ -846,13 +846,13 @@ function InventorySection({ appUser }: { appUser: AppUser | null }) {
                 {filteredPerfumes.map((perfume) => (
                   <tr key={perfume.id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
+    <div>
                         <div className="text-sm font-semibold text-gray-900">{perfume.name}</div>
                         <div className="text-sm text-gray-500">{perfume.brand}</div>
                         {perfume.size && (
                           <div className="text-xs text-gray-400 mt-1">{perfume.size}</div>
                         )}
-                      </div>
+    </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
