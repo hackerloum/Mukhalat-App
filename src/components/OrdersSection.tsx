@@ -10,7 +10,7 @@ interface Order {
   customer_email?: string
   total_amount: number
   payment_method: 'cash' | 'card' | 'bank_transfer'
-  status: 'pending' | 'completed' | 'cancelled'
+  status: 'pending' | 'confirmed' | 'cancelled'
   created_at: string
   created_by: string
   closed_by?: string
@@ -88,7 +88,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'confirmed':
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
@@ -154,9 +154,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
       // Log audit action
       await AuditLogService.logOrderAction({
         userId: user.id,
-        action: newStatus === 'completed' ? AuditAction.orderConfirmed : AuditAction.orderCancelled,
+        action: newStatus === 'confirmed' ? AuditAction.orderConfirmed : AuditAction.orderCancelled,
         orderId: orderId,
-        description: `Order ${newStatus === 'completed' ? 'completed' : 'cancelled'} by ${user.full_name || user.email}`,
+        description: `Order ${newStatus === 'confirmed' ? 'confirmed' : 'cancelled'} by ${user.full_name || user.email}`,
         metadata: {
           order_id: orderId,
           customer_name: currentOrder?.customer_name,
@@ -371,7 +371,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                       {order.status === 'pending' && (appUser?.role === 'admin' || appUser?.role === 'manager') && (
                         <>
                           <button
-                            onClick={() => updateOrderStatus(order.id, 'completed')}
+                            onClick={() => updateOrderStatus(order.id, 'confirmed')}
                             disabled={updatingOrder === order.id}
                             className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                           >
