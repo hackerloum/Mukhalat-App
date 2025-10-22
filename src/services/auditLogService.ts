@@ -82,6 +82,8 @@ export interface CombinedAuditLog extends AuditLog {
   customer_id?: string
   customer_name?: string
   user_name?: string
+  user_email?: string
+  user_role?: string
   old_values?: any
   new_values?: any
 }

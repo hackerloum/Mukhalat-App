@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AuditLogService, CombinedAuditLog } from '../services/auditLogService'
+import { supabase } from '../lib/supabase'
 import { Activity, Calendar, Search, User, Database, Eye, Filter, Download, RefreshCw } from 'lucide-react'
 
 export function AuditLogsSection() {
@@ -22,20 +23,27 @@ export function AuditLogsSection() {
       
       let logs: CombinedAuditLog[] = []
       
-      if (dateRange) {
-        logs = await AuditLogService.getAuditLogsByDateRange(
-          dateRange.start,
-          dateRange.end,
-          200
-        )
-      } else if (searchTerm) {
-        logs = await AuditLogService.searchAuditLogs(
-          searchTerm,
-          filterLogType === 'all' ? undefined : filterLogType,
-          200
-        )
-      } else {
-        logs = await AuditLogService.getCombinedAuditLogs(200)
+      // Try to load from the view first, fallback to direct table queries
+      try {
+        if (dateRange) {
+          logs = await AuditLogService.getAuditLogsByDateRange(
+            dateRange.start,
+            dateRange.end,
+            200
+          )
+        } else if (searchTerm) {
+          logs = await AuditLogService.searchAuditLogs(
+            searchTerm,
+            filterLogType === 'all' ? undefined : filterLogType,
+            200
+          )
+        } else {
+          logs = await AuditLogService.getCombinedAuditLogs(200)
+        }
+      } catch (viewError) {
+        console.warn('View not available, falling back to direct queries:', viewError)
+        // Fallback to direct table queries
+        logs = await loadAuditLogsDirect()
       }
 
       setAuditLogs(logs)
@@ -43,6 +51,83 @@ export function AuditLogsSection() {
       console.error('Error loading audit logs:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAuditLogsDirect = async (): Promise<CombinedAuditLog[]> => {
+    try {
+      // Load system audit logs
+      const { data: systemLogs, error: systemError } = await supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          app_users!audit_logs_user_id_fkey (
+            full_name,
+            email,
+            role
+          )
+        `)
+        .order('timestamp', { ascending: false })
+        .limit(100)
+
+      if (systemError) {
+        console.error('Error loading system audit logs:', systemError)
+      }
+
+      // Load customer debit audit logs
+      const { data: customerDebitLogs, error: customerDebitError } = await supabase
+        .from('customer_debit_audit_logs')
+        .select(`
+          *,
+          app_users!customer_debit_audit_logs_user_id_fkey (
+            full_name,
+            email,
+            role
+          ),
+          customers!customer_debit_audit_logs_customer_id_fkey (
+            name
+          )
+        `)
+        .order('timestamp', { ascending: false })
+        .limit(100)
+
+      if (customerDebitError) {
+        console.error('Error loading customer debit audit logs:', customerDebitError)
+      }
+
+      // Transform system logs
+      const transformedSystemLogs: CombinedAuditLog[] = (systemLogs || []).map(log => ({
+        ...log,
+        log_type: 'system' as const,
+        transaction_id: undefined,
+        customer_id: undefined,
+        customer_name: undefined,
+        user_name: log.app_users?.full_name || 'Unknown User',
+        user_email: log.app_users?.email || 'Unknown',
+        user_role: log.app_users?.role || 'Unknown',
+        old_values: undefined,
+        new_values: undefined
+      }))
+
+      // Transform customer debit logs
+      const transformedCustomerDebitLogs: CombinedAuditLog[] = (customerDebitLogs || []).map(log => ({
+        ...log,
+        log_type: 'customer_debit' as const,
+        user_name: log.app_users?.full_name || 'Unknown User',
+        user_email: log.app_users?.email || 'Unknown',
+        user_role: log.app_users?.role || 'Unknown',
+        customer_name: log.customers?.name || 'Unknown Customer'
+      }))
+
+      // Combine and sort by timestamp
+      const allLogs = [...transformedSystemLogs, ...transformedCustomerDebitLogs]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 200)
+
+      return allLogs
+    } catch (error) {
+      console.error('Error in direct audit logs loading:', error)
+      return []
     }
   }
 
