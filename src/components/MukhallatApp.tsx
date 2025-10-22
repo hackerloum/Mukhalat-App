@@ -13,10 +13,13 @@ import {
   Save,
   X,
   Users,
-  Activity
+  Activity,
+  Edit,
+  Trash2
 } from 'lucide-react'
 import { OrdersSection } from './OrdersSection'
 import { AuditLogsSection } from './AuditLogsSection'
+import { EditProductModal } from './EditProductModal'
 import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 // Supabase client
@@ -537,7 +540,7 @@ function Dashboard({ user, appUser, onSignOut }: {
       case 'users':
         return <UsersContent user={user} appUser={appUser} />
       case 'audit':
-        return <AuditContent user={user} appUser={appUser} />
+        return <AuditContent />
       default:
         return <DashboardContent
           perfumes={perfumes}
@@ -795,12 +798,52 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
   user: any
 }) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Perfume | null>(null)
   
   const filteredPerfumes = perfumes.filter(perfume =>
     perfume.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     perfume.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
     perfume.category.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleEditProduct = (product: Perfume) => {
+    setEditingProduct(product)
+    setShowEditModal(true)
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('perfumes')
+        .delete()
+        .eq('id', productId)
+
+      if (error) throw error
+      
+      // Log the deletion
+      await AuditLogService.logInventoryAction({
+        userId: user.id,
+        action: AuditAction.perfumeDeleted,
+        perfumeId: productId,
+        description: `Product deleted: ${productId}`,
+        metadata: { deleted: true }
+      })
+      
+      handleProductAdded() // Reload the products
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      alert('Failed to delete product. Please try again.')
+    }
+  }
+
+  const handleProductUpdated = () => {
+    handleProductAdded() // Reload the products
+  }
 
   if (loading) {
     return (
@@ -889,6 +932,11 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Status
                 </th>
+                {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -941,6 +989,26 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
                       </span>
                     )}
                   </td>
+                  {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditProduct(perfume)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(perfume.id)}
+                          className="text-red-600 hover:text-red-900 flex items-center"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -1043,6 +1111,17 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
         onClose={() => setShowAddModal(false)}
         onProductAdded={handleProductAdded}
         user={user}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingProduct(null)
+        }}
+        onProductUpdated={handleProductUpdated}
+        product={editingProduct}
       />
     </>
   )
@@ -1473,7 +1552,7 @@ function UsersContent({ user }: { user: any, appUser: AppUser | null }) {
 }
 
 // Audit Content Component
-function AuditContent({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function AuditContent() {
   return <AuditLogsSection />
 }
 
