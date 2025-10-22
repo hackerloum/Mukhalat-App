@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { 
   Users, 
   Plus, 
@@ -13,12 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { AddTransactionModal } from './AddTransactionModal'
-
-// Supabase client
-const supabaseUrl = 'https://prsxpmhfbdhekrkjiuti.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc3hwbWhmYmRoZWtya2ppdXRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MTMwNDYsImV4cCI6MjA3NDI4OTA0Nn0.HiPS3ibFT3Zv2SBTVduWngl0Y4rbSyw91XW8cQL3N6w'
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { supabase } from '../lib/supabase'
 
 // Types
 interface Customer {
@@ -522,6 +516,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<CustomerDebit | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [renderError, setRenderError] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -532,6 +527,29 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       setError(err.message || 'Failed to load data')
     }
   }, [])
+
+  // Error boundary for render errors
+  if (renderError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <div className="text-red-800">
+            <h3 className="text-lg font-semibold mb-2">Rendering Error</h3>
+            <p className="mb-4">{renderError}</p>
+            <button
+              onClick={() => {
+                setRenderError(null)
+                window.location.reload()
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -558,8 +576,8 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         .select(`
           *,
           customer:customers(*),
-          created_by_name:app_users!created_by(full_name),
-          approved_by_name:app_users!approved_by(full_name)
+          created_by_user:app_users!created_by(id, full_name),
+          approved_by_user:app_users!approved_by(id, full_name)
         `)
         .order('created_at', { ascending: false })
 
@@ -568,8 +586,15 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         throw error
       }
       
-      console.log('Loaded transactions:', data)
-      setTransactions(data || [])
+      // Transform the data to extract full_name from nested objects
+      const transformedData = data?.map(transaction => ({
+        ...transaction,
+        created_by_name: transaction.created_by_user?.full_name || 'Unknown',
+        approved_by_name: transaction.approved_by_user?.full_name || 'Unknown'
+      })) || []
+      
+      console.log('Loaded transactions:', transformedData)
+      setTransactions(transformedData)
     } catch (error) {
       console.error('Error loading transactions:', error)
     }
@@ -618,6 +643,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         throw new Error('User not authenticated. Please sign in again.')
       }
       
+      console.log('Updating transaction status to approved...')
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -634,7 +660,9 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       
       console.log('Transaction approved successfully')
       alert('Transaction approved successfully!')
-      loadData()
+      
+      // Reload data to reflect changes
+      await loadData()
     } catch (error: any) {
       console.error('Error approving transaction:', error)
       alert(`Failed to approve transaction: ${error.message || 'Unknown error'}`)
@@ -720,9 +748,10 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
     )
   }
 
-  return (
-    <>
-      <div className="space-y-6">
+  try {
+    return (
+      <>
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
@@ -943,4 +972,9 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       )}
     </>
   )
+  } catch (renderErr: any) {
+    console.error('Error rendering CustomerDebitsSection:', renderErr)
+    setRenderError(renderErr.message || 'Rendering error occurred')
+    return null
+  }
 }
