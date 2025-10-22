@@ -521,14 +521,21 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<CustomerDebit | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    console.log('CustomerDebitsSection mounted with user:', user, 'appUser:', appUser)
-    loadData()
+    try {
+      console.log('CustomerDebitsSection mounted with user:', user, 'appUser:', appUser)
+      loadData()
+    } catch (err: any) {
+      console.error('Error in CustomerDebitsSection useEffect:', err)
+      setError(err.message || 'Failed to load data')
+    }
   }, [])
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     try {
       await Promise.all([
         loadTransactions(),
@@ -537,6 +544,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       ])
     } catch (error) {
       console.error('Error loading data:', error)
+      setError('Failed to load data. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -605,6 +613,11 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
     try {
       console.log('Approving transaction:', transactionId, 'by user:', user?.id)
       
+      // Validate user
+      if (!user || !user.id) {
+        throw new Error('User not authenticated. Please sign in again.')
+      }
+      
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -631,6 +644,11 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   const handleRejectTransaction = async (transactionId: string, reason: string) => {
     try {
       console.log('Rejecting transaction:', transactionId, 'by user:', user?.id, 'reason:', reason)
+      
+      // Validate user
+      if (!user || !user.id) {
+        throw new Error('User not authenticated. Please sign in again.')
+      }
       
       const { error } = await supabase
         .from('customer_debits')
@@ -671,6 +689,28 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
 
   const pendingTransactions = transactions.filter(t => t.status === 'pending')
   const totalOutstanding = customers.reduce((sum, customer) => sum + Math.max(0, customer.current_balance), 0)
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <div className="text-red-800">
+            <h3 className="text-lg font-semibold mb-2">Error Loading Customer Debits</h3>
+            <p className="mb-4">{error}</p>
+            <button
+              onClick={() => {
+                setError(null)
+                loadData()
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -717,7 +757,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
