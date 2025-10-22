@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Receipt, Plus, Search, Eye, Edit, Trash2, Calendar, User, Phone, Mail, DollarSign, CreditCard } from 'lucide-react'
+import { Receipt, Plus, Search, Eye, Calendar, Phone, Mail, DollarSign, CreditCard, CheckCircle, XCircle } from 'lucide-react'
+import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 interface Order {
   id: string
@@ -38,6 +39,8 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadOrders()
@@ -120,7 +123,23 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      setUpdatingOrder(orderId)
+      setError(null)
+
+      // Get the current order data for audit logging
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single()
+
+      if (fetchError) {
+        console.error('Error fetching order:', fetchError)
+        throw new Error('Failed to fetch order details')
+      }
+
+      // Update the order status
+      const { error: updateError } = await supabase
         .from('orders')
         .update({ 
           status: newStatus,
@@ -129,12 +148,36 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
         })
         .eq('id', orderId)
 
-      if (error) throw error
+      if (updateError) {
+        console.error('Supabase update error:', updateError)
+        throw new Error(`Failed to update order status: ${updateError.message}`)
+      }
 
-      // Reload orders
-      loadOrders()
-    } catch (error) {
+      // Log audit action
+      await AuditLogService.logOrderAction({
+        userId: user.id,
+        action: newStatus === 'completed' ? AuditAction.orderConfirmed : AuditAction.orderCancelled,
+        orderId: orderId,
+        description: `Order ${newStatus === 'completed' ? 'completed' : 'cancelled'} by ${user.full_name || user.email}`,
+        metadata: {
+          order_id: orderId,
+          customer_name: currentOrder?.customer_name,
+          total_amount: currentOrder?.total_amount,
+          previous_status: currentOrder?.status,
+          new_status: newStatus,
+          closed_by: user.full_name || user.email
+        }
+      })
+
+      // Reload orders to reflect changes
+      await loadOrders()
+      
+      console.log(`Order ${orderId} status updated to ${newStatus}`)
+    } catch (error: any) {
       console.error('Error updating order status:', error)
+      setError(error.message || 'Failed to update order status')
+    } finally {
+      setUpdatingOrder(null)
     }
   }
 
@@ -173,6 +216,27 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
           )}
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-sm text-red-600 hover:text-red-500 mt-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
@@ -310,15 +374,37 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                         <>
                           <button
                             onClick={() => updateOrderStatus(order.id, 'completed')}
-                            className="text-green-600 hover:text-green-900"
+                            disabled={updatingOrder === order.id}
+                            className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                           >
-                            Complete
+                            {updatingOrder === order.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-600 mr-1"></div>
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Complete
+                              </>
+                            )}
                           </button>
                           <button
                             onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                            className="text-red-600 hover:text-red-900"
+                            disabled={updatingOrder === order.id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                           >
-                            Cancel
+                            {updatingOrder === order.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></div>
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Cancel
+                              </>
+                            )}
                           </button>
                         </>
                       )}
