@@ -352,6 +352,32 @@ function ApprovalsTable({
   onApprove: (transactionId: string) => void
   onReject: (transactionId: string, reason: string) => void
 }) {
+  const [processingTransaction, setProcessingTransaction] = useState<string | null>(null)
+
+  const handleApprove = async (transactionId: string) => {
+    setProcessingTransaction(transactionId)
+    try {
+      await onApprove(transactionId)
+    } finally {
+      setProcessingTransaction(null)
+    }
+  }
+
+  const handleReject = async (transactionId: string) => {
+    const reason = prompt('Please provide a reason for rejection:')
+    if (!reason || reason.trim() === '') {
+      alert('Rejection reason is required')
+      return
+    }
+    
+    setProcessingTransaction(transactionId)
+    try {
+      await onReject(transactionId, reason.trim())
+    } finally {
+      setProcessingTransaction(null)
+    }
+  }
+
   if (transactions.length === 0) {
     return (
       <div className="text-center py-12">
@@ -397,23 +423,38 @@ function ApprovalsTable({
             
             <div className="flex space-x-2 ml-4">
               <button
-                onClick={() => onApprove(transaction.id)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
+                onClick={() => handleApprove(transaction.id)}
+                disabled={processingTransaction === transaction.id}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve
+                {processingTransaction === transaction.id ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve
+                  </>
+                )}
               </button>
               <button
-                onClick={() => {
-                  const reason = prompt('Rejection reason:')
-                  if (reason) {
-                    onReject(transaction.id, reason)
-                  }
-                }}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center"
+                onClick={() => handleReject(transaction.id)}
+                disabled={processingTransaction === transaction.id}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <XCircle className="h-4 w-4 mr-2" />
-                Reject
+                {processingTransaction === transaction.id ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -482,6 +523,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   const [selectedTransaction, setSelectedTransaction] = useState<CustomerDebit | null>(null)
 
   useEffect(() => {
+    console.log('CustomerDebitsSection mounted with user:', user, 'appUser:', appUser)
     loadData()
   }, [])
 
@@ -502,6 +544,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
 
   const loadTransactions = async () => {
     try {
+      console.log('Loading transactions...')
       const { data, error } = await supabase
         .from('customer_debits')
         .select(`
@@ -512,7 +555,12 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error loading transactions:', error)
+        throw error
+      }
+      
+      console.log('Loaded transactions:', data)
       setTransactions(data || [])
     } catch (error) {
       console.error('Error loading transactions:', error)
@@ -555,6 +603,8 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
 
   const handleApproveTransaction = async (transactionId: string) => {
     try {
+      console.log('Approving transaction:', transactionId, 'by user:', user?.id)
+      
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -564,16 +614,24 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         })
         .eq('id', transactionId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
+      
+      console.log('Transaction approved successfully')
+      alert('Transaction approved successfully!')
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving transaction:', error)
-      alert('Failed to approve transaction. Please try again.')
+      alert(`Failed to approve transaction: ${error.message || 'Unknown error'}`)
     }
   }
 
   const handleRejectTransaction = async (transactionId: string, reason: string) => {
     try {
+      console.log('Rejecting transaction:', transactionId, 'by user:', user?.id, 'reason:', reason)
+      
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -584,11 +642,17 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         })
         .eq('id', transactionId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
+      
+      console.log('Transaction rejected successfully')
+      alert('Transaction rejected successfully!')
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting transaction:', error)
-      alert('Failed to reject transaction. Please try again.')
+      alert(`Failed to reject transaction: ${error.message || 'Unknown error'}`)
     }
   }
 
