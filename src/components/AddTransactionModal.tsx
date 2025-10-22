@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Save, Plus, User, Search } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 // Types
 interface Customer {
@@ -137,7 +138,7 @@ export function AddTransactionModal({
       }
 
       // Create transaction
-      const { error: transactionError } = await supabase
+      const { data: newTransaction, error: transactionError } = await supabase
         .from('customer_debits')
         .insert([{
           customer_id: customerId,
@@ -149,8 +150,30 @@ export function AddTransactionModal({
           status: 'pending',
           created_by: user.id
         }])
+        .select()
+        .single()
 
       if (transactionError) throw transactionError
+
+      // Log the transaction creation
+      if (newTransaction) {
+        await AuditLogService.logCustomerDebitAction({
+          userId: user.id,
+          action: AuditAction.customerDebitCreated,
+          transactionId: newTransaction.id,
+          customerId: customerId,
+          description: `Customer debit transaction created by ${user.full_name || user.email}`,
+          newValues: newTransaction,
+          metadata: {
+            amount: newTransaction.amount,
+            status: 'pending',
+            transaction_type: newTransaction.transaction_type,
+            payment_method: newTransaction.payment_method,
+            description: newTransaction.description,
+            created_by: user.full_name || user.email
+          }
+        })
+      }
 
       // Reset form
       setFormData({

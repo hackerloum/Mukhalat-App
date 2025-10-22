@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { AddTransactionModal } from './AddTransactionModal'
 import { supabase } from '../lib/supabase'
+import { AuditLogService, AuditAction } from '../services/auditLogService'
 
 // Types
 interface Customer {
@@ -661,6 +662,14 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       }
       
       console.log('Updating transaction status to approved...')
+      
+      // Get the transaction details for audit logging
+      const { data: transactionData } = await supabase
+        .from('customer_debits')
+        .select('*')
+        .eq('id', transactionId)
+        .single()
+
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -673,6 +682,31 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       if (error) {
         console.error('Supabase error:', error)
         throw error
+      }
+      
+      // Log the approval action
+      if (transactionData) {
+        await AuditLogService.logCustomerDebitAction({
+          userId: user.id,
+          action: AuditAction.customerDebitApproved,
+          transactionId: transactionId,
+          customerId: transactionData.customer_id,
+          description: `Customer debit transaction approved by ${user.full_name || user.email}`,
+          oldValues: transactionData,
+          newValues: {
+            ...transactionData,
+            status: 'approved',
+            approved_by: user.id,
+            approved_at: new Date().toISOString()
+          },
+          metadata: {
+            amount: transactionData.amount,
+            status: 'approved',
+            transaction_type: transactionData.transaction_type,
+            payment_method: transactionData.payment_method,
+            approved_by: user.full_name || user.email
+          }
+        })
       }
       
       console.log('Transaction approved successfully')
@@ -695,6 +729,13 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
         throw new Error('User not authenticated. Please sign in again.')
       }
       
+      // Get the transaction details for audit logging
+      const { data: transactionData } = await supabase
+        .from('customer_debits')
+        .select('*')
+        .eq('id', transactionId)
+        .single()
+
       const { error } = await supabase
         .from('customer_debits')
         .update({
@@ -708,6 +749,33 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
       if (error) {
         console.error('Supabase error:', error)
         throw error
+      }
+      
+      // Log the rejection action
+      if (transactionData) {
+        await AuditLogService.logCustomerDebitAction({
+          userId: user.id,
+          action: AuditAction.customerDebitRejected,
+          transactionId: transactionId,
+          customerId: transactionData.customer_id,
+          description: `Customer debit transaction rejected by ${user.full_name || user.email}. Reason: ${reason}`,
+          oldValues: transactionData,
+          newValues: {
+            ...transactionData,
+            status: 'rejected',
+            rejection_reason: reason,
+            approved_by: user.id,
+            approved_at: new Date().toISOString()
+          },
+          metadata: {
+            amount: transactionData.amount,
+            status: 'rejected',
+            transaction_type: transactionData.transaction_type,
+            payment_method: transactionData.payment_method,
+            rejection_reason: reason,
+            rejected_by: user.full_name || user.email
+          }
+        })
       }
       
       console.log('Transaction rejected successfully')

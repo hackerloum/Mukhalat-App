@@ -1,29 +1,16 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { Activity, Calendar, Search, User, Database, Eye, X } from 'lucide-react'
-
-interface AuditLog {
-  id: string
-  user_id: string
-  action: string
-  description: string
-  target_id?: string
-  target_type?: string
-  metadata?: any
-  timestamp: string
-  ip_address?: string
-  user_email?: string
-  user_name?: string
-}
+import { AuditLogService, CombinedAuditLog } from '../services/auditLogService'
+import { Activity, Calendar, Search, User, Database, Eye, Filter, Download, RefreshCw } from 'lucide-react'
 
 export function AuditLogsSection() {
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [auditLogs, setAuditLogs] = useState<CombinedAuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterAction, setFilterAction] = useState('')
-  const [filterTargetType, setFilterTargetType] = useState('')
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const [filterLogType, setFilterLogType] = useState<'all' | 'system' | 'customer_debit'>('all')
+  const [selectedLog, setSelectedLog] = useState<CombinedAuditLog | null>(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null)
   
   useEffect(() => {
     loadAuditLogs()
@@ -33,34 +20,27 @@ export function AuditLogsSection() {
     try {
       setLoading(true)
       
-      // Get audit logs with user information
-      const { data: logs, error } = await supabase
-        .from('audit_logs')
-        .select(`
-          *,
-          app_users!audit_logs_user_id_fkey (
-            email,
-            full_name
-          )
-        `)
-        .order('timestamp', { ascending: false })
-        .limit(100)
-
-      if (error) {
-        console.error('Error loading audit logs:', error)
-        return
+      let logs: CombinedAuditLog[] = []
+      
+      if (dateRange) {
+        logs = await AuditLogService.getAuditLogsByDateRange(
+          dateRange.start,
+          dateRange.end,
+          200
+        )
+      } else if (searchTerm) {
+        logs = await AuditLogService.searchAuditLogs(
+          searchTerm,
+          filterLogType === 'all' ? undefined : filterLogType,
+          200
+        )
+      } else {
+        logs = await AuditLogService.getCombinedAuditLogs(200)
       }
 
-      // Transform data to include user info
-      const transformedLogs = logs?.map(log => ({
-        ...log,
-        user_email: log.app_users?.email || 'Unknown',
-        user_name: log.app_users?.full_name || 'Unknown User'
-      })) || []
-
-      setAuditLogs(transformedLogs)
+      setAuditLogs(logs)
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error loading audit logs:', error)
     } finally {
       setLoading(false)
     }
@@ -71,17 +51,17 @@ export function AuditLogsSection() {
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (log.target_type && log.target_type.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      (log.customer_name && log.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (log.user_name && log.user_name.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesAction = !filterAction || log.action === filterAction
-    const matchesTargetType = !filterTargetType || log.target_type === filterTargetType
+    const matchesLogType = filterLogType === 'all' || log.log_type === filterLogType
     
-    return matchesSearch && matchesAction && matchesTargetType
+    return matchesSearch && matchesAction && matchesLogType
   })
 
   const uniqueActions = [...new Set(auditLogs.map(log => log.action))]
-  const uniqueTargetTypes = [...new Set(auditLogs.map(log => log.target_type).filter(Boolean))]
+  const uniqueLogTypes = [...new Set(auditLogs.map(log => log.log_type))]
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
@@ -89,6 +69,16 @@ export function AuditLogsSection() {
 
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {
+      case 'customerdebitcreated':
+        return 'bg-green-100 text-green-800'
+      case 'customerdebitupdated':
+        return 'bg-blue-100 text-blue-800'
+      case 'customerdebitapproved':
+        return 'bg-emerald-100 text-emerald-800'
+      case 'customerdebitrejected':
+        return 'bg-red-100 text-red-800'
+      case 'customerdebitdeleted':
+        return 'bg-red-100 text-red-800'
       case 'ordercreated':
         return 'bg-green-100 text-green-800'
       case 'perfumeadded':
@@ -101,14 +91,46 @@ export function AuditLogsSection() {
         return 'bg-purple-100 text-purple-800'
       case 'userstatuschanged':
         return 'bg-indigo-100 text-indigo-800'
+      case 'login':
+        return 'bg-purple-100 text-purple-800'
+      case 'logout':
+        return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const showLogDetails = (log: AuditLog) => {
+  const getLogTypeColor = (logType: string) => {
+    switch (logType) {
+      case 'system':
+        return 'bg-blue-100 text-blue-800'
+      case 'customer_debit':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const showLogDetails = (log: CombinedAuditLog) => {
     setSelectedLog(log)
     setShowDetails(true)
+  }
+
+  const handleSearch = () => {
+    loadAuditLogs()
+  }
+
+  const handleDateRangeChange = (start: string, end: string) => {
+    setDateRange({ start, end })
+    loadAuditLogs()
+  }
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setFilterAction('')
+    setFilterLogType('all')
+    setDateRange(null)
+    loadAuditLogs()
   }
 
   if (loading) {
@@ -125,20 +147,29 @@ export function AuditLogsSection() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Audit Logs</h2>
-          <p className="text-gray-600">Track all system activities and changes</p>
+          <p className="text-gray-600">Track all system activities and customer debit transactions</p>
         </div>
-        <button
-          onClick={loadAuditLogs}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Activity className="h-4 w-4 mr-2" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={clearFilters}
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Clear Filters
+          </button>
+          <button
+            onClick={loadAuditLogs}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -151,9 +182,26 @@ export function AuditLogsSection() {
                 placeholder="Search logs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+          </div>
+
+          {/* Log Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Log Type
+            </label>
+            <select
+              value={filterLogType}
+              onChange={(e) => setFilterLogType(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Types</option>
+              <option value="system">System Events</option>
+              <option value="customer_debit">Customer Debits</option>
+            </select>
           </div>
 
           {/* Action Filter */}
@@ -173,21 +221,33 @@ export function AuditLogsSection() {
             </select>
           </div>
 
-          {/* Target Type Filter */}
+          {/* Date Range */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Target Type
+              Date Range
             </label>
-            <select
-              value={filterTargetType}
-              onChange={(e) => setFilterTargetType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Types</option>
-              {uniqueTargetTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={dateRange?.start || ''}
+                onChange={(e) => {
+                  const start = e.target.value
+                  const end = dateRange?.end || new Date().toISOString().split('T')[0]
+                  handleDateRangeChange(start, end)
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <input
+                type="date"
+                value={dateRange?.end || ''}
+                onChange={(e) => {
+                  const start = dateRange?.start || new Date().toISOString().split('T')[0]
+                  const end = e.target.value
+                  handleDateRangeChange(start, end)
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -196,7 +256,7 @@ export function AuditLogsSection() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            System Activity ({filteredLogs.length} logs)
+            Audit Logs ({filteredLogs.length} logs)
           </h3>
         </div>
 
@@ -211,13 +271,16 @@ export function AuditLogsSection() {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Log Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Action
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Target
+                  Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -238,13 +301,18 @@ export function AuditLogsSection() {
                       <User className="h-4 w-4 text-gray-400 mr-2" />
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {log.user_name}
+                          {log.user_name || 'Unknown User'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {log.user_email}
+                          {log.user_id}
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLogTypeColor(log.log_type)}`}>
+                      {log.log_type}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.action)}`}>
@@ -252,18 +320,31 @@ export function AuditLogsSection() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {log.description}
+                    <div className="max-w-xs truncate">
+                      {log.description}
+                    </div>
+                    {log.log_type === 'customer_debit' && log.metadata && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Amount: ${log.metadata.amount || 'N/A'} | 
+                        Status: {log.metadata.status || 'N/A'} | 
+                        Type: {log.metadata.transaction_type || 'N/A'}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <Database className="h-4 w-4 text-gray-400 mr-2" />
-                      <div>
-                        <div className="text-sm font-medium">{log.target_type || 'N/A'}</div>
-                        {log.target_id && (
-                          <div className="text-xs text-gray-500">ID: {log.target_id}</div>
-                        )}
+                    {log.customer_name ? (
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 text-gray-400 mr-2" />
+                        <div>
+                          <div className="text-sm font-medium">{log.customer_name}</div>
+                          {log.customer_id && (
+                            <div className="text-xs text-gray-500">ID: {log.customer_id}</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
@@ -297,9 +378,9 @@ export function AuditLogsSection() {
                 <h3 className="text-lg font-medium text-gray-900">Audit Log Details</h3>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                 >
-                  <X className="h-6 w-6" />
+                  ×
                 </button>
               </div>
             </div>
@@ -313,7 +394,13 @@ export function AuditLogsSection() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">User</label>
-                  <p className="text-sm text-gray-900">{selectedLog.user_name} ({selectedLog.user_email})</p>
+                  <p className="text-sm text-gray-900">{selectedLog.user_name || 'Unknown User'} ({selectedLog.user_id})</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Log Type</label>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLogTypeColor(selectedLog.log_type)}`}>
+                    {selectedLog.log_type}
+                  </span>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
@@ -329,6 +416,18 @@ export function AuditLogsSection() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Target ID</label>
                   <p className="text-sm text-gray-900">{selectedLog.target_id || 'N/A'}</p>
                 </div>
+                {selectedLog.customer_name && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                    <p className="text-sm text-gray-900">{selectedLog.customer_name} ({selectedLog.customer_id})</p>
+                  </div>
+                )}
+                {selectedLog.transaction_id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID</label>
+                    <p className="text-sm text-gray-900">{selectedLog.transaction_id}</p>
+                  </div>
+                )}
                 {selectedLog.ip_address && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">IP Address</label>
@@ -342,6 +441,28 @@ export function AuditLogsSection() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedLog.description}</p>
               </div>
+
+              {/* Customer Debit Specific Info */}
+              {selectedLog.log_type === 'customer_debit' && (
+                <div className="space-y-4">
+                  {selectedLog.old_values && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Previous Values</label>
+                      <pre className="bg-red-50 p-4 rounded-lg text-sm overflow-x-auto border border-red-200">
+                        {JSON.stringify(selectedLog.old_values, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {selectedLog.new_values && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">New Values</label>
+                      <pre className="bg-green-50 p-4 rounded-lg text-sm overflow-x-auto border border-green-200">
+                        {JSON.stringify(selectedLog.new_values, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Metadata */}
               {selectedLog.metadata && (
