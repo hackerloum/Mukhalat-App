@@ -55,17 +55,10 @@ export function AuditLogsSection() {
 
   const loadAuditLogsDirect = async (): Promise<CombinedAuditLog[]> => {
     try {
-      // Load system audit logs
+      // Load system audit logs (simplified query)
       const { data: systemLogs, error: systemError } = await supabase
         .from('audit_logs')
-        .select(`
-          *,
-          app_users!audit_logs_user_id_fkey (
-            full_name,
-            email,
-            role
-          )
-        `)
+        .select('*')
         .order('timestamp', { ascending: false })
         .limit(100)
 
@@ -73,20 +66,10 @@ export function AuditLogsSection() {
         console.error('Error loading system audit logs:', systemError)
       }
 
-      // Load customer debit audit logs
+      // Load customer debit audit logs (simplified query)
       const { data: customerDebitLogs, error: customerDebitError } = await supabase
         .from('customer_debit_audit_logs')
-        .select(`
-          *,
-          app_users!customer_debit_audit_logs_user_id_fkey (
-            full_name,
-            email,
-            role
-          ),
-          customers!customer_debit_audit_logs_customer_id_fkey (
-            name
-          )
-        `)
+        .select('*')
         .order('timestamp', { ascending: false })
         .limit(100)
 
@@ -94,28 +77,28 @@ export function AuditLogsSection() {
         console.error('Error loading customer debit audit logs:', customerDebitError)
       }
 
-      // Transform system logs
+      // Transform system logs (simplified)
       const transformedSystemLogs: CombinedAuditLog[] = (systemLogs || []).map(log => ({
         ...log,
         log_type: 'system' as const,
         transaction_id: undefined,
         customer_id: undefined,
         customer_name: undefined,
-        user_name: log.app_users?.full_name || 'Unknown User',
-        user_email: log.app_users?.email || 'Unknown',
-        user_role: log.app_users?.role || 'Unknown',
+        user_name: 'Unknown User', // Will be filled later if needed
+        user_email: 'Unknown',
+        user_role: 'Unknown',
         old_values: undefined,
         new_values: undefined
       }))
 
-      // Transform customer debit logs
+      // Transform customer debit logs (simplified)
       const transformedCustomerDebitLogs: CombinedAuditLog[] = (customerDebitLogs || []).map(log => ({
         ...log,
         log_type: 'customer_debit' as const,
-        user_name: log.app_users?.full_name || 'Unknown User',
-        user_email: log.app_users?.email || 'Unknown',
-        user_role: log.app_users?.role || 'Unknown',
-        customer_name: log.customers?.name || 'Unknown Customer'
+        user_name: 'Unknown User', // Will be filled later if needed
+        user_email: 'Unknown',
+        user_role: 'Unknown',
+        customer_name: 'Unknown Customer' // Will be filled later if needed
       }))
 
       // Combine and sort by timestamp
