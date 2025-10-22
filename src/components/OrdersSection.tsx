@@ -246,7 +246,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order) => {
+                if (!order) return null
+                return (
                 <tr key={order.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     #{order.id.slice(-8)}
@@ -282,7 +284,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex items-center">
                       {getPaymentMethodIcon(order.payment_method)}
-                      <span className="ml-2 capitalize">{order.payment_method?.replace('_', ' ') || 'Unknown'}</span>
+                      <span className="ml-2 capitalize">
+                        {order.payment_method ? order.payment_method.replace('_', ' ') : 'Unknown'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -318,7 +322,8 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -370,7 +375,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
                   <div className="flex items-center">
                     {getPaymentMethodIcon(selectedOrder.payment_method)}
-                    <span className="ml-2 capitalize">{selectedOrder.payment_method?.replace('_', ' ') || 'Unknown'}</span>
+                    <span className="ml-2 capitalize">
+                      {selectedOrder.payment_method ? selectedOrder.payment_method.replace('_', ' ') : 'Unknown'}
+                    </span>
                   </div>
                 </div>
                 <div>
