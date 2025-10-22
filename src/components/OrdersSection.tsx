@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Receipt, Plus, Search, Eye, Edit, Trash2, Calendar, User, Phone, Mail, DollarSign, CreditCard } from 'lucide-react'
+import { Receipt, Plus, Search, Eye, Edit, Trash2, Calendar, User, Phone, Mail, DollarSign, CreditCard, X } from 'lucide-react'
 
 interface Order {
   id: string
