@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Receipt, Plus, Search, Eye, Edit, Trash2, Calendar, User, Phone, Mail, DollarSign, CreditCard, X } from 'lucide-react'
+import { Receipt, Plus, Search, Eye, Edit, Trash2, Calendar, User, Phone, Mail, DollarSign, CreditCard } from 'lucide-react'
 
 interface Order {
   id: string
@@ -23,6 +23,9 @@ interface OrderItem {
   quantity: number
   unit_price: number
   total_price: number
+  cost_price?: number
+  sell_price?: number
+  store_price?: number
   perfume_name?: string
   perfume_brand?: string
 }
@@ -347,9 +350,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                 </h3>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                 >
-                  <X className="h-6 w-6" />
+                  ×
                 </button>
               </div>
             </div>
@@ -467,9 +470,9 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                 <h3 className="text-lg font-medium text-gray-900">Create New Order</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                 >
-                  <X className="h-6 w-6" />
+                  ×
                 </button>
               </div>
             </div>
