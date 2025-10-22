@@ -4,33 +4,32 @@ import { AuditLogsSection } from './AuditLogsSection'
 import { OrdersSection } from './OrdersSection'
 import { ExpensesSection } from './ExpensesSection'
 import { DatabaseTest } from './DatabaseTest'
+import { AddProductModal } from './AddProductModal'
+import { EditProductModal } from './EditProductModal'
 import { 
   ShoppingBag, 
   Package, 
   DollarSign, 
-  TrendingUp, 
   Plus, 
   Search,
   LogOut,
   Eye,
   EyeOff,
-  Save,
-  X,
   Menu,
   X as CloseIcon,
   BarChart3,
   FileText,
-  CreditCard,
   Settings,
   Users,
   Bell,
-  Database,
   Activity,
   Receipt,
-  Wallet,
   TrendingDown,
-  Calendar,
-  Filter
+  Edit,
+  Trash2,
+  AlertTriangle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
 
 // Supabase client
@@ -65,41 +64,6 @@ interface AppUser {
   created_at: string
   last_login_at?: string
   is_active: boolean
-}
-
-interface Order {
-  id: string
-  customer_name: string
-  customer_phone?: string
-  customer_email?: string
-  total_amount: number
-  payment_method: 'cash' | 'card' | 'bank_transfer'
-  status: 'pending' | 'completed' | 'cancelled'
-  created_at: string
-  created_by: string
-  closed_by?: string
-}
-
-interface Expense {
-  id: string
-  description: string
-  amount: number
-  category: string
-  date: string
-  created_by: string
-  notes?: string
-}
-
-interface AuditLog {
-  id: string
-  user_id: string
-  action: string
-  table_name: string
-  record_id: string
-  old_values?: any
-  new_values?: any
-  created_at: string
-  ip_address?: string
 }
 
 type ActiveSection = 
@@ -293,17 +257,16 @@ export function MukhallatApp() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* Header */}
         <Header 
-          user={user} 
           appUser={appUser} 
           onSignOut={handleSignOut}
           onMenuClick={() => setSidebarOpen(true)}
         />
 
         {/* Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           <ContentArea 
             activeSection={activeSection}
             user={user}
@@ -359,7 +322,7 @@ function Sidebar({
       {/* Sidebar */}
       <div className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0
+        lg:translate-x-0 lg:static lg:inset-0 lg:shadow-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-between h-16 px-6 border-b">
@@ -408,42 +371,40 @@ function Sidebar({
 
 // Header Component
 function Header({ 
-  user, 
   appUser, 
   onSignOut, 
   onMenuClick 
 }: {
-  user: any
   appUser: AppUser | null
   onSignOut: () => void
   onMenuClick: () => void
 }) {
   return (
     <header className="bg-white shadow-sm border-b h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-      <div className="flex items-center">
+      <div className="flex items-center min-w-0 flex-1">
         <button
           onClick={onMenuClick}
-          className="lg:hidden text-gray-600 hover:text-gray-900 mr-4"
+          className="lg:hidden text-gray-600 hover:text-gray-900 mr-3 flex-shrink-0"
         >
           <Menu className="h-6 w-6" />
         </button>
-        <h1 className="text-lg font-semibold text-gray-900">
-          {appUser?.full_name || appUser?.email}
-        </h1>
-        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-          {appUser?.role || 'No Role'}
-        </span>
-        {/* Debug info */}
-        <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-          Debug: {appUser ? 'User Found' : 'No User'}
-        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">
+            {appUser?.full_name || appUser?.email}
+          </h1>
+        </div>
+        <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+          <span className="hidden sm:inline text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+            {appUser?.role || 'No Role'}
+          </span>
+        </div>
       </div>
       
       <button
         onClick={onSignOut}
-        className="flex items-center text-gray-600 hover:text-gray-900"
+        className="flex items-center text-gray-600 hover:text-gray-900 flex-shrink-0 ml-2"
       >
-        <LogOut className="h-4 w-4 mr-1" />
+        <LogOut className="h-4 w-4 sm:mr-1" />
         <span className="hidden sm:inline">Sign Out</span>
       </button>
     </header>
@@ -462,27 +423,27 @@ function ContentArea({
 }) {
   switch (activeSection) {
     case 'dashboard':
-      return <DashboardSection user={user} appUser={appUser} />
+      return <DashboardSection />
     case 'inventory':
-      return <InventorySection user={user} appUser={appUser} />
+      return <InventorySection appUser={appUser} />
     case 'orders':
       return <OrdersSection user={user} appUser={appUser} />
     case 'sales':
-      return <SalesSection user={user} appUser={appUser} />
+      return <SalesSection />
     case 'expenses':
       return <ExpensesSection user={user} appUser={appUser} />
     case 'reports':
-      return <ReportsSection user={user} appUser={appUser} />
+      return <ReportsSection />
     case 'audit-logs':
-      return <AuditLogsSection user={user} appUser={appUser} />
+      return <AuditLogsSection />
     case 'users':
-      return <UsersSection user={user} appUser={appUser} />
+      return <UsersSection />
     case 'notifications':
-      return <NotificationsSection user={user} appUser={appUser} />
+      return <NotificationsSection />
     case 'settings':
-      return <SettingsSection user={user} appUser={appUser} />
+      return <SettingsSection />
     default:
-      return <DashboardSection user={user} appUser={appUser} />
+      return <DashboardSection />
   }
 }
 
@@ -677,7 +638,7 @@ function AuthScreen({ onSignIn, onSignUp, error }: {
 }
 
 // Placeholder components for each section
-function DashboardSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function DashboardSection() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
@@ -728,18 +689,282 @@ function DashboardSection({ user, appUser }: { user: any, appUser: AppUser | nul
   )
 }
 
-function InventorySection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function InventorySection({ appUser }: { appUser: AppUser | null }) {
+  const [perfumes, setPerfumes] = useState<Perfume[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Perfume | null>(null)
+
+  useEffect(() => {
+    loadPerfumes()
+  }, [])
+
+  const loadPerfumes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('perfumes')
+        .select('*')
+        .order('added_date', { ascending: false })
+
+      if (error) throw error
+      setPerfumes(data || [])
+    } catch (error) {
+      console.error('Error loading perfumes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleProductAdded = () => {
+    loadPerfumes()
+  }
+
+  const handleProductUpdated = () => {
+    loadPerfumes()
+  }
+
+  const handleEditProduct = (product: Perfume) => {
+    setEditingProduct(product)
+    setShowEditModal(true)
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('perfumes')
+        .delete()
+        .eq('id', productId)
+
+      if (error) throw error
+      loadPerfumes()
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      alert('Failed to delete product. Please try again.')
+    }
+  }
+
+  const filteredPerfumes = perfumes.filter(perfume =>
+    perfume.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    perfume.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    perfume.category.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Inventory Management</h2>
-      <p className="text-gray-600">Inventory management section - coming soon!</p>
-    </div>
+    <>
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-900">Inventory Management</h2>
+          
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 w-full lg:w-auto">
+            <div className="w-full lg:w-80">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search products, brands, or categories..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-500">
+                Showing {filteredPerfumes.length} of {perfumes.length} products
+              </div>
+              
+              {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center justify-center shadow-sm transition-all duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Inventory Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Product Inventory</h3>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cost Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Sell Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Store Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Profit
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredPerfumes.map((perfume) => (
+                  <tr key={perfume.id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{perfume.name}</div>
+                        <div className="text-sm text-gray-500">{perfume.brand}</div>
+                        {perfume.size && (
+                          <div className="text-xs text-gray-400 mt-1">{perfume.size}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {perfume.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
+                      ${perfume.cost_price.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                      ${perfume.sell_price.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                      ${perfume.store_price.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-purple-600">
+                      ${(perfume.sell_price - perfume.cost_price).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {perfume.quantity}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {perfume.quantity === 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Out of Stock
+                        </span>
+                      ) : perfume.quantity < 5 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Low Stock
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          In Stock
+                        </span>
+                      )}
+                    </td>
+                    {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEditProduct(perfume)}
+                            className="text-blue-600 hover:text-blue-900 flex items-center"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(perfume.id)}
+                            className="text-red-600 hover:text-red-900 flex items-center"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {filteredPerfumes.length === 0 && (
+          <div className="text-center py-16">
+            <div className="bg-gray-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Package className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first product'}
+            </p>
+            {(appUser?.role === 'admin' || appUser?.role === 'manager') && !searchTerm && (
+              <button 
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center mx-auto"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Product
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Add Product Modal */}
+      <AddProductModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onProductAdded={handleProductAdded}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingProduct(null)
+        }}
+        onProductUpdated={handleProductUpdated}
+        product={editingProduct}
+      />
+    </>
   )
 }
 
 // OrdersSection is now imported from separate file
 
-function SalesSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function SalesSection() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Daily Sales</h2>
@@ -750,7 +975,7 @@ function SalesSection({ user, appUser }: { user: any, appUser: AppUser | null })
 
 // ExpensesSection is now imported from separate file
 
-function ReportsSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function ReportsSection() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Reports & Analytics</h2>
@@ -761,7 +986,7 @@ function ReportsSection({ user, appUser }: { user: any, appUser: AppUser | null 
 
 // AuditLogsSection is now imported from separate file
 
-function UsersSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function UsersSection() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">User Management</h2>
@@ -770,7 +995,7 @@ function UsersSection({ user, appUser }: { user: any, appUser: AppUser | null })
   )
 }
 
-function NotificationsSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function NotificationsSection() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Notifications</h2>
@@ -779,7 +1004,7 @@ function NotificationsSection({ user, appUser }: { user: any, appUser: AppUser |
   )
 }
 
-function SettingsSection({ user, appUser }: { user: any, appUser: AppUser | null }) {
+function SettingsSection() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">System Settings</h2>
