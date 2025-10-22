@@ -14,9 +14,10 @@ import {
 import { AddTransactionModal } from './AddTransactionModal'
 import { supabase } from '../lib/supabase'
 import { AuditLogService, AuditAction } from '../services/auditLogService'
+import { TransactionDetailsModal } from './TransactionDetailsModal'
 
 // Types
-interface Customer {
+export interface Customer {
   id: string
   name: string
   email?: string
@@ -30,7 +31,7 @@ interface Customer {
   last_transaction_date?: string
 }
 
-interface CustomerDebit {
+export interface CustomerDebit {
   id: string
   customer_id: string
   transaction_type: 'debit' | 'payment'
@@ -532,6 +533,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [showTransactionDetails, setShowTransactionDetails] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<CustomerDebit | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -649,6 +651,15 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
   }
 
   const handleTransactionAdded = () => {
+    loadData()
+  }
+
+  const handleViewTransaction = (transaction: CustomerDebit) => {
+    setSelectedTransaction(transaction)
+    setShowTransactionDetails(true)
+  }
+
+  const handleTransactionUpdated = () => {
     loadData()
   }
 
@@ -993,10 +1004,7 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
             {activeTab === 'transactions' && (
               <TransactionsTable 
                 transactions={filteredTransactions}
-                onViewTransaction={(transaction) => {
-                  setSelectedTransaction(transaction)
-                  setShowApprovalModal(true)
-                }}
+                onViewTransaction={handleViewTransaction}
                 userRole={appUser?.role}
               />
             )}
@@ -1057,6 +1065,18 @@ export function CustomerDebitsSection({ user, appUser }: CustomerDebitsSectionPr
           onReject={handleRejectTransaction}
         />
       )}
+
+      <TransactionDetailsModal
+        isOpen={showTransactionDetails}
+        onClose={() => {
+          setShowTransactionDetails(false)
+          setSelectedTransaction(null)
+        }}
+        transaction={selectedTransaction}
+        user={user}
+        appUser={appUser}
+        onTransactionUpdated={handleTransactionUpdated}
+      />
     </>
   )
   } catch (renderErr: any) {
