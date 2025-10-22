@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { OrdersSection } from './OrdersSection'
 import { AuditLogsSection } from './AuditLogsSection'
+import { AddUserModal } from './AddUserModal'
 import { EditProductModal } from './EditProductModal'
 import { CustomerDebitsSection } from './CustomerDebitsSection'
 import { StatisticsSection } from './StatisticsSection'
@@ -1481,24 +1482,13 @@ function UsersContent({ user }: { user: any, appUser: AppUser | null }) {
         )}
       </div>
 
-      {/* Add User Modal - Coming Soon */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div className="text-center">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Add User Feature</h3>
-              <p className="text-gray-500 mb-6">User creation functionality coming soon...</p>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onUserAdded={loadUsers}
+        currentUser={user}
+      />
     </>
   )
 }
