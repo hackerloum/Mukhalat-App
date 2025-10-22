@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AuditLogService, CombinedAuditLog } from '../services/auditLogService'
 import { supabase } from '../lib/supabase'
-import { Activity, Calendar, Search, User, Database, Eye, Filter, Download, RefreshCw } from 'lucide-react'
+import { Activity, Calendar, Search, User, Eye, Filter, RefreshCw } from 'lucide-react'
 
 export function AuditLogsSection() {
   const [auditLogs, setAuditLogs] = useState<CombinedAuditLog[]>([])
@@ -31,12 +31,11 @@ export function AuditLogsSection() {
             dateRange.end,
             200
           )
-        } else if (searchTerm) {
-          logs = await AuditLogService.searchAuditLogs(
-            searchTerm,
-            filterLogType === 'all' ? undefined : filterLogType,
-            200
-          )
+      } else if (searchTerm) {
+        logs = await AuditLogService.searchAuditLogs(
+          searchTerm,
+          200
+        )
         } else {
           logs = await AuditLogService.getCombinedAuditLogs(200)
         }
@@ -146,7 +145,6 @@ export function AuditLogsSection() {
   })
 
   const uniqueActions = [...new Set(auditLogs.map(log => log.action))]
-  const uniqueLogTypes = [...new Set(auditLogs.map(log => log.log_type))]
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
@@ -356,9 +354,6 @@ export function AuditLogsSection() {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Log Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Action
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -368,80 +363,97 @@ export function AuditLogsSection() {
                   Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                      {formatDate(log.timestamp)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 text-gray-400 mr-2" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {log.user_name || 'Unknown User'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {log.user_id}
-                        </div>
+              {filteredLogs.map((log) => {
+                // Parse metadata if it's a string
+                let metadata = log.metadata;
+                if (typeof metadata === 'string') {
+                  try {
+                    metadata = JSON.parse(metadata);
+                  } catch (e) {
+                    metadata = {};
+                  }
+                }
+
+                return (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                        {formatDate(log.timestamp)}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getLogTypeColor(log.log_type)}`}>
-                      {log.log_type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.action)}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div className="max-w-xs truncate">
-                      {log.description}
-                    </div>
-                    {log.log_type === 'customer_debit' && log.metadata && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Amount: ${log.metadata.amount || 'N/A'} | 
-                        Status: {log.metadata.status || 'N/A'} | 
-                        Type: {log.metadata.transaction_type || 'N/A'}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {log.customer_name ? (
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <User className="h-4 w-4 text-gray-400 mr-2" />
                         <div>
-                          <div className="text-sm font-medium">{log.customer_name}</div>
-                          {log.customer_id && (
-                            <div className="text-xs text-gray-500">ID: {log.customer_id}</div>
-                          )}
+                          <div className="text-sm font-medium text-gray-900">
+                            {log.user_name || 'Unknown User'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {log.user_id}
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => showLogDetails(log)}
-                      className="text-blue-600 hover:text-blue-900 flex items-center"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.action)}`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-xs truncate">
+                        {log.description}
+                      </div>
+                      {log.transaction_id && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Transaction: {log.transaction_id.substring(0, 8)}...
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {log.customer_name ? (
+                        <div className="flex items-center">
+                          <User className="h-4 w-4 text-gray-400 mr-2" />
+                          <div>
+                            <div className="text-sm font-medium">{log.customer_name}</div>
+                            {log.customer_id && (
+                              <div className="text-xs text-gray-500">ID: {log.customer_id.substring(0, 8)}...</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {metadata?.amount ? (
+                        <span className="font-medium text-green-600">
+                          ${metadata.amount}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => showLogDetails(log)}
+                        className="text-blue-600 hover:text-blue-900 flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

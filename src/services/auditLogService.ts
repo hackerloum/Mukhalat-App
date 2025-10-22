@@ -251,14 +251,36 @@ export class AuditLogService {
   // Get combined audit logs (system + customer debit)
   static async getCombinedAuditLogs(limit: number = 100): Promise<CombinedAuditLog[]> {
     try {
+      // First try the view, if it doesn't exist, fall back to direct queries
       const { data, error } = await supabase
-        .from('audit_logs_with_users')
-        .select('*')
+        .from('customer_debit_audit_logs')
+        .select(`
+          *,
+          app_users!customer_debit_audit_logs_user_id_fkey (
+            full_name,
+            email
+          ),
+          customers!customer_debit_audit_logs_customer_id_fkey (
+            name
+          )
+        `)
         .order('timestamp', { ascending: false })
         .limit(limit)
 
       if (error) throw error
-      return data || []
+      
+      // Transform the data to match our interface
+      const transformedLogs = data?.map(log => ({
+        ...log,
+        log_type: 'customer_debit' as const,
+        user_name: log.app_users?.full_name || 'Unknown User',
+        user_email: log.app_users?.email || 'Unknown',
+        customer_name: log.customers?.name || null,
+        target_id: log.transaction_id,
+        target_type: 'customer_debit'
+      })) || []
+
+      return transformedLogs
     } catch (error) {
       console.error('Error fetching combined audit logs:', error)
       return []
@@ -273,15 +295,35 @@ export class AuditLogService {
   ): Promise<CombinedAuditLog[]> {
     try {
       const { data, error } = await supabase
-        .from('audit_logs_with_users')
-        .select('*')
+        .from('customer_debit_audit_logs')
+        .select(`
+          *,
+          app_users!customer_debit_audit_logs_user_id_fkey (
+            full_name,
+            email
+          ),
+          customers!customer_debit_audit_logs_customer_id_fkey (
+            name
+          )
+        `)
         .gte('timestamp', startDate)
         .lte('timestamp', endDate)
         .order('timestamp', { ascending: false })
         .limit(limit)
 
       if (error) throw error
-      return data || []
+      
+      const transformedLogs = data?.map(log => ({
+        ...log,
+        log_type: 'customer_debit' as const,
+        user_name: log.app_users?.full_name || 'Unknown User',
+        user_email: log.app_users?.email || 'Unknown',
+        customer_name: log.customers?.name || null,
+        target_id: log.transaction_id,
+        target_type: 'customer_debit'
+      })) || []
+
+      return transformedLogs
     } catch (error) {
       console.error('Error fetching audit logs by date range:', error)
       return []
@@ -291,25 +333,38 @@ export class AuditLogService {
   // Search audit logs
   static async searchAuditLogs(
     searchTerm: string,
-    logType?: 'all' | 'system' | 'customer_debit',
     limit: number = 100
   ): Promise<CombinedAuditLog[]> {
     try {
-      let query = supabase
-        .from('audit_logs_with_users')
-        .select('*')
-        .or(`description.ilike.%${searchTerm}%,action.ilike.%${searchTerm}%,customer_name.ilike.%${searchTerm}%`)
+      const { data, error } = await supabase
+        .from('customer_debit_audit_logs')
+        .select(`
+          *,
+          app_users!customer_debit_audit_logs_user_id_fkey (
+            full_name,
+            email
+          ),
+          customers!customer_debit_audit_logs_customer_id_fkey (
+            name
+          )
+        `)
+        .or(`description.ilike.%${searchTerm}%,action.ilike.%${searchTerm}%`)
         .order('timestamp', { ascending: false })
         .limit(limit)
 
-      if (logType && logType !== 'all') {
-        query = query.eq('log_type', logType)
-      }
-
-      const { data, error } = await query
-
       if (error) throw error
-      return data || []
+      
+      const transformedLogs = data?.map(log => ({
+        ...log,
+        log_type: 'customer_debit' as const,
+        user_name: log.app_users?.full_name || 'Unknown User',
+        user_email: log.app_users?.email || 'Unknown',
+        customer_name: log.customers?.name || null,
+        target_id: log.transaction_id,
+        target_type: 'customer_debit'
+      })) || []
+
+      return transformedLogs
     } catch (error) {
       console.error('Error searching audit logs:', error)
       return []
