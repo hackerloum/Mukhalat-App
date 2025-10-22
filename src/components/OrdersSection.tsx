@@ -93,7 +93,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
     }
   }
 
-  const getPaymentMethodIcon = (method: string) => {
+  const getPaymentMethodIcon = (method?: string) => {
     switch (method) {
       case 'cash':
         return <DollarSign className="h-4 w-4" />
@@ -282,7 +282,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex items-center">
                       {getPaymentMethodIcon(order.payment_method)}
-                      <span className="ml-2 capitalize">{order.payment_method.replace('_', ' ')}</span>
+                      <span className="ml-2 capitalize">{order.payment_method?.replace('_', ' ') || 'Unknown'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -370,7 +370,7 @@ export function OrdersSection({ user, appUser }: { user: any, appUser: any }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
                   <div className="flex items-center">
                     {getPaymentMethodIcon(selectedOrder.payment_method)}
-                    <span className="ml-2 capitalize">{selectedOrder.payment_method.replace('_', ' ')}</span>
+                    <span className="ml-2 capitalize">{selectedOrder.payment_method?.replace('_', ' ') || 'Unknown'}</span>
                   </div>
                 </div>
                 <div>
