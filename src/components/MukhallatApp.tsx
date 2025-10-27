@@ -1016,7 +1016,7 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
         </div>
 
         {/* Enhanced Mobile Card Layout */}
-        <div className="lg:hidden">
+        <div className="lg:hidden" style={{border: '2px solid red'}}>
           <div className="divide-y divide-gray-200">
             {filteredPerfumes.map((perfume) => (
               <div key={perfume.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
@@ -1079,8 +1079,10 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
                   </div>
                   
                   {/* Action Buttons for Mobile */}
-                  {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
-                    <div className="flex space-x-2 pt-2">
+                  <div className="pt-2">
+                    <div className="text-xs text-gray-500 mb-2">Debug: Role = {appUser?.role || 'undefined'}</div>
+                    <div className="text-xs text-gray-500 mb-2">Debug: Should show buttons = {(appUser?.role === 'admin' || appUser?.role === 'manager') ? 'YES' : 'NO'}</div>
+                    <div className="flex space-x-2">
                       <button
                         onClick={() => handleEditProduct(perfume)}
                         className="flex-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-100 flex items-center justify-center text-sm font-medium transition-colors"
@@ -1096,7 +1098,7 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
                         Delete
                       </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
