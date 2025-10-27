@@ -1073,10 +1073,30 @@ function InventoryContent({ perfumes, loading, showAddModal, setShowAddModal, ha
                 </div>
                 
                 <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex justify-between items-center text-sm mb-3">
                     <span className="text-gray-500">Stock Quantity:</span>
                     <span className="font-semibold text-gray-900">{perfume.quantity} units</span>
                   </div>
+                  
+                  {/* Action Buttons for Mobile */}
+                  {(appUser?.role === 'admin' || appUser?.role === 'manager') && (
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        onClick={() => handleEditProduct(perfume)}
+                        className="flex-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-100 flex items-center justify-center text-sm font-medium transition-colors"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(perfume.id)}
+                        className="flex-1 bg-red-50 text-red-700 px-3 py-2 rounded-lg hover:bg-red-100 flex items-center justify-center text-sm font-medium transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
